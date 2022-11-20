@@ -1,8 +1,11 @@
 from cmu_112_graphics import *
 from random import *
 
-#Sprite for pitcher >> Done 
-#Setup different pitches >>
+#Setup variety of different pitches based on randomness
+#Implement strikes vs balls
+#Setup probabilty of missing the pitch based on the type of swing
+#i.e power swing vs contact swing
+#Setup power of swing based on type of swing
 
 class Pitch:
     def __init__(self, name, dx, d2x, dy, d2y):
@@ -19,10 +22,24 @@ class Pitch:
         self.d2y = d2y
 
 class Bat:
+#More mass more power
+#Higher length leads to higher possibilty of hitting the ball but less power
+
     def __init__(self, name, mass, length):
         self.name = name
         self.mass = mass
         self.length = length
+
+    def probabiltyOfContact(self):
+        num = randrange(1,100)
+        cutoff = (self.length)
+        if num < cutoff:
+            return True
+        else:
+            return False
+    
+    def powerOfHit(self):
+        return self.mass
 
 def appStarted(app): 
     #Pitcher sprites
@@ -35,7 +52,7 @@ def appStarted(app):
     spritestripPitcher = app.imagePitcher
     app.spritesPitcher = [ ]
     for i in range(6):
-        sprite = spritestripPitcher.crop((176*i, 0, 175*(i+1), 158))
+        sprite = spritestripPitcher.crop((153*i, 0, 150*(i+1), 158))
         app.spritesPitcher.append(sprite)
     app.spritePitcherCounter = 0
 
@@ -59,6 +76,24 @@ def appStarted(app):
     app.batter = False
     app.throwBall = False
 
+    app.strikes = 0
+    app.balls = 0
+    app.outs = 0
+    app.bat = None
+
+def contactWithBat(app):
+    batCx = app.width * 1/12
+    batCy = app.height * 8/11
+    batR = app.width//12
+
+    if (batCx < app.ballCx < batCx + batR and 
+        batCy - batR < app.ballCy < batCy + batR and
+        app.bat.probabiltiyOfContact()):
+        print("Hit")
+        return True
+    else:
+        return False
+
 def chooseRandomPitch(app):
     totalPitches = len(app.pitchList)
     randomNum = randint(0, totalPitches - 1)
@@ -76,7 +111,15 @@ def keyPressed(app, event):
         chooseRandomPitch(app)
     
     if event.key == "b":
+        contactWithBat(app)
         app.batter = True
+
+#User chooses a bat
+    if event.key == "1":
+        app.bat = Bat("slammer", 75, 25)
+
+    if event.key == "2":
+        app.bat = Bat("longhead", 25, 75)
 
 def timerFired(app):
     #Updates pitcher sprites
@@ -110,21 +153,22 @@ def timerFired(app):
             app.pitch.dy += app.pitch.d2y
         
 def redrawAll(app, canvas):
-    #Background field
+    #Background field:
+    color = (158, 197, 245)
     canvas.create_rectangle(0,0, app.width, app.height, fill = "SkyBlue2")
     canvas.create_rectangle(0, app.height * 8/9, app.width, app.height, 
                                             fill = "green", outline = "green")
 
-    #Print sprites of pitcher
+    #Print sprites of pitcher and batter:
     pitcherSprite = app.spritesPitcher[app.spritePitcherCounter]
-    canvas.create_image(app.width * 6/8, app.height * 7/9, 
+    canvas.create_image(app.width * 6/8, app.height * 10/13, 
                                     image=ImageTk.PhotoImage(pitcherSprite))
 
     batterSprite = app.spritesBatter[app.spriteBatterCounter]
-    canvas.create_image(app.width * 2/8, app.height * 7/9, 
+    canvas.create_image(app.width * 1/12, app.height * 8/11, 
                                     image=ImageTk.PhotoImage(batterSprite))
 
-    #Ball
+    #Ball:
     if app.throwBall:
         canvas.create_oval(app.ballCx - app.r, app.ballCy - app.r, 
                         app.ballCx + app.r, app.ballCy + app.r, fill = "white")
@@ -134,5 +178,26 @@ def redrawAll(app, canvas):
                             anchor = "nw", fill = "black", font = "Arial 30 bold")
         canvas.create_text(app.width*4/6, app.height*2/12, text = f"Pitch: {app.pitch.name}", 
                             anchor = "nw", fill = "black", font = "Arial 30 bold")
+
+    #Green zone:
+    batCx = app.width * 1/12
+    batCy = app.height * 8/11
+    batR = app.width//12
+    canvas.create_arc(batCx - batR, batCy - batR, batCx + batR,
+                        batCy + batR, start=270, extent=180, outline = "green", width = 5)
+
+    #Hub:
+    textX = app.width * 1/12
+    textY = app.height * 1/10
+    canvas.create_text(textX, textY, text = f"Strikes: {app.strikes}/3", font = "Arial 20 bold", fill = "black")
+    canvas.create_text(textX, textY * 1.5, text = f"Balls: {app.balls}/4", font = "Arial 20 bold", fill = "black")
+    canvas.create_text(textX, textY * 2, text = f"Outs: {app.outs}/3", font = "Arial 20 bold", fill = "black")
+
+
+
+    canvas.create_rectangle(0, app.height * 8/9, app.width, app.height, 
+                                            fill = "green", outline = "green")
+
+
 
 runApp(width=1200, height=600)
