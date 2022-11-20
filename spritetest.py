@@ -1,3 +1,6 @@
+#From the course website
+#https://www.cs.cmu.edu/~112/notes/notes-animations-part4.html#spritesheetsWithCropping 
+
 # This demos sprites using Pillow/PIL images
 # See here for more details:
 # https://pillow.readthedocs.io/en/stable/reference/Image.html
