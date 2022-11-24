@@ -45,24 +45,25 @@ class Bat:
         else:
             return False
     
-#Calculate the x- and y-vector of the ball after it is hit
+#Calculate dx and dy the ball after it is hit
     def velocityOfHit(self, app):
 
         vInitial = app.pitchSpeed
-        dT = 0.1
-        acceleration = 5
+        dT = 0.15 #avg time of bat on ball
+        acceleration = 31 #avg bat accel
         fAvg = self.mass * acceleration
         vFinal = ((fAvg * dT) // app.pitch.mass) + vInitial
-        velOfBall = (vFinal/(cos(app.launchAngle)))
+        velOfBall = (vFinal/(cos(app.launchAngle))) // 4
 
         velOfBallX = velOfBall * (cos(app.launchAngle))
-        velOfBallY = -1 * abs(velOfBall * (sin(app.launchAngle)) // 10)
+        velOfBallY = -1 * abs(velOfBall * (sin(app.launchAngle)))
         
         app.pitch.dx = velOfBallX
         app.pitch.dy = velOfBallY
 
         print(f'velOfBall is {velOfBall}')
         print(f'the velos are {velOfBallX}, {velOfBallY}')
+        print(f'---------------')
 
     def __repr__(self):
         return f"{self.name}"
@@ -87,12 +88,13 @@ def appStarted(app):
         app.spritesBatter.append(sprite)
     app.spriteBatterCounter = 0
 
+    app.directions = False
     #Pitches
     app.ballCx, app.ballCy = app.width * 26/39, app.height * 7/9
     app.r = 7
-    app.fastball = Pitch("fastball", -7, 0, 0, 0, 5) 
-    app.curveball = Pitch("curveball", -7,0 , -1.8, 0.1, 5)
-    app.slider = Pitch("slider", -7, 0, 0.2 , 0.05, 5)
+    app.fastball = Pitch("fastball", -7, 0, 0, 0, 0.145) 
+    app.curveball = Pitch("curveball", -7,0 , -1.8, 0.1, 0.145)
+    app.slider = Pitch("slider", -7, 0, 0.2 , 0.05, 0.145)
     app.pitchList = [app.fastball, app.curveball, app.slider]
     app.pitch = None
     app.pitchSpeed = None
@@ -100,9 +102,10 @@ def appStarted(app):
     app.throwBall = False
 
     #Batting
+    app.pickBat = False
     app.positionAtSwingX, app.positionAtSwingY = 0, 0
     app.launchAngle = None
-    app.gravity = 0.005
+    app.gravity = 0.0008
     app.batter = False
     app.hitPitch = False
     app.strikes = 0
@@ -132,12 +135,10 @@ def contactWithBat(app):
 
 #Finds launch angle
 def launchAngle(app):
-    print(f"positionY at swing is {app.positionAtSwingY}")
     batCy = app.height * 8/11
     batR = app.width//36
 
     top1 = batCy - batR
-    print(f'top1 is {top1}')
     top2 = batCy - 3 * batR
 
     bottom1 = batCy + batR
@@ -149,6 +150,9 @@ def launchAngle(app):
         app.launchAngle = randrange(31,60)
     elif bottom2 >= app.positionAtSwingY > bottom1:
         app.launchAngle = randrange(1,30)
+
+    #Conversion from degrees to radians 
+    app.launchAngle = (app.launchAngle * pi)/180
 
     print(f'the launch angle is {app.launchAngle}')
 
@@ -187,10 +191,15 @@ def keyPressed(app, event):
 
     #User chooses a bat
     if event.key == "1":
-        app.bat = Bat("slammer", 50, 50)
+        app.pickBat = True
+        app.bat = Bat("slammer", 0.7, 50)
 
     if event.key == "2":
-        app.bat = Bat("longhead", 25, 75)
+        app.pickBat = True
+        app.bat = Bat("longhead", 0.5, 75)
+
+    if event.key == "c":
+        app.directions = True
 
 def timerFired(app):
     #Updates pitcher sprites
@@ -219,7 +228,7 @@ def timerFired(app):
 
     #Pitches
     if app.throwBall:
-        app.pitchSpeed = 20
+        app.pitchSpeed = 36
         app.ballCx += app.pitch.dx
         app.pitch.dx += app.pitch.d2x
 
@@ -232,8 +241,7 @@ def timerFired(app):
 
     #Swings
     if app.hitPitch: 
-        print("Ball was hit")
-        print(f" the ball is at {(app.ballCx, app.ballCy)}")        
+        # print(f" the ball is at {(app.ballCx, app.ballCy)}")        
         app.pitch.d2y += app.gravity
         app.pitch.dy += app.pitch.d2y
 
@@ -277,7 +285,6 @@ def redrawAll(app, canvas):
     canvas.create_line(batCx, top1, batCx + batR, top1, fill = "blue", width = 3)
     canvas.create_line(batCx, bottom1, batCx + batR, bottom1, fill = "blue", width = 3)
 
-
     #Hub:
     textX = app.width * 2/12
     textY = app.height * 1/10
@@ -289,6 +296,30 @@ def redrawAll(app, canvas):
     #Grass
     canvas.create_rectangle(0, app.height * 8/9, app.width, app.height, 
                                             fill = "green", outline = "green")
+    
+    #Welcome screen
+    if app.pickBat == False:
+        canvas.create_text(app.width//2, app.height//3, 
+        text = "Welcome! Pick a bat!", fill = "black", font = "Arial 30 bold")
 
+        canvas.create_text(app.width//2, app.height//3 * 1.2, 
+        text = "Bat 1: Slugger or Bat 2: Longhead", fill = "black", font = "Arial 30 bold")
+    
+        canvas.create_text(app.width//2, app.height//3 * 1.4, 
+        text = "Choose slugger if you are all about the power and don't care as much about accuracy",
+        fill = "black", font = "Arial 20 bold")
+
+        canvas.create_text(app.width//2, app.height//3 * 1.5, 
+        text = "Choose longhead for higher accuracy but less power",
+        fill = "black", font = "Arial 20 bold")
+    
+    if app.directions == False and app.pickBat == True:
+        canvas.create_text(app.width//2, app.height//3, 
+        text = "Directions: Press on the 'b' key to swing and try to hit the ball as many times before you gain 3 outs!", 
+        fill = "black", font = "Arial 20 bold")
+
+        canvas.create_text(app.width//2, app.height//3 * 1.2, 
+        text = "Press 'c' to begin! Best of luck!", 
+        fill = "black", font = "Arial 20 bold")
 
 runApp(width=1200, height=600)
