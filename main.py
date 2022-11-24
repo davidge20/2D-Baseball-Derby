@@ -22,7 +22,7 @@ class Pitch:
         self.d2x = d2x
         self.dy = dy
         self.d2y = d2y
-        self.mass = 5
+        self.mass = mass
 
     def reset(self, dx, d2x, dy, d2y):
         self.dx = dx
@@ -31,9 +31,6 @@ class Pitch:
         self.d2y = d2y
 
 class Bat:
-#More mass more power
-#Higher length leads to higher possibilty of hitting the ball but less power
-
     def __init__(self, name, mass, length):
         self.name = name
         self.mass = mass
@@ -50,22 +47,19 @@ class Bat:
     
 #Calculate the x- and y-vector of the ball after it is hit
     def velocityOfHit(self, app):
-        app.launchAngle = 30
+
         vInitial = app.pitchSpeed
-        dT = 0.01
+        dT = 0.1
         acceleration = 5
         fAvg = self.mass * acceleration
         vFinal = ((fAvg * dT) // app.pitch.mass) + vInitial
         velOfBall = (vFinal/(cos(app.launchAngle)))
 
         velOfBallX = velOfBall * (cos(app.launchAngle))
-        velOfBallY = velOfBall * (sin(app.launchAngle)) // 10
+        velOfBallY = -1 * abs(velOfBall * (sin(app.launchAngle)) // 10)
         
         app.pitch.dx = velOfBallX
         app.pitch.dy = velOfBallY
-
-        app.pitchd2x = 0
-        app.ptichd2y = 0
 
         print(f'velOfBall is {velOfBall}')
         print(f'the velos are {velOfBallX}, {velOfBallY}')
@@ -106,8 +100,9 @@ def appStarted(app):
     app.throwBall = False
 
     #Batting
+    app.positionAtSwingX, app.positionAtSwingY = 0, 0
     app.launchAngle = None
-    app.gravity = 0.06
+    app.gravity = 0.005
     app.batter = False
     app.hitPitch = False
     app.strikes = 0
@@ -129,17 +124,44 @@ def contactWithBat(app):
         batCy - batR < app.ballCy < batCy + batR and
         app.bat.probabilityOfContact(app)):
         print("Hit")
-        app.throwBall = False
-        app.hitPitch = True
 
         app.pitch.dx = 0
         app.pitch.dy = 0
+        app.pitch.d2x = 0
+        app.pitch.d2y = 0
+
+#Finds launch angle
+def launchAngle(app):
+    print(f"positionY at swing is {app.positionAtSwingY}")
+    batCy = app.height * 8/11
+    batR = app.width//36
+
+    top1 = batCy - batR
+    print(f'top1 is {top1}')
+    top2 = batCy - 3 * batR
+
+    bottom1 = batCy + batR
+    bottom2 = batCy + 3 * batR
+
+    if top1 >= app.positionAtSwingY:
+        app.launchAngle = randrange(61,90)
+    elif bottom1 >= app.positionAtSwingY > top1:
+        app.launchAngle = randrange(31,60)
+    elif bottom2 >= app.positionAtSwingY > bottom1:
+        app.launchAngle = randrange(1,30)
+
+    print(f'the launch angle is {app.launchAngle}')
 
 #Choose pitch for pitcher
 def chooseRandomPitch(app):
     totalPitches = len(app.pitchList)
     randomNum = randint(0, totalPitches - 1)
     app.pitch = app.pitchList[randomNum]
+
+    cy = app.height * 7//9
+    max = cy - app.height//20
+    min = cy + app.height//20
+    app.ballCy = randrange(max, min)
 
     #resets values
     app.fastball.reset(-7, 0, 0, 0)
@@ -154,12 +176,18 @@ def keyPressed(app, event):
         chooseRandomPitch(app)
     
     if event.key == "b": #Batter swings
+        app.positionAtSwingX, app.positionAtSwingY = app.ballCx, app.ballCy
         contactWithBat(app)
+        launchAngle(app)
+        app.bat.velocityOfHit(app)
+
+        app.throwBall = False
+        app.hitPitch = True
         app.batter = True
 
-#User chooses a bat
+    #User chooses a bat
     if event.key == "1":
-        app.bat = Bat("slammer", 75, 25)
+        app.bat = Bat("slammer", 50, 50)
 
     if event.key == "2":
         app.bat = Bat("longhead", 25, 75)
@@ -191,7 +219,7 @@ def timerFired(app):
 
     #Pitches
     if app.throwBall:
-        app.pitchSpeed = ((app.pitch.dx)**2 + (app.pitch.dy) ** 2) ** 0.5
+        app.pitchSpeed = 20
         app.ballCx += app.pitch.dx
         app.pitch.dx += app.pitch.d2x
 
@@ -203,18 +231,14 @@ def timerFired(app):
             app.pitch.dy += app.pitch.d2y
 
     #Swings
-    if app.hitPitch:
+    if app.hitPitch: 
         print("Ball was hit")
-        print(f" the ball is at {(app.ballCx, app.ballCy)}")
-        app.bat.velocityOfHit(app)
-        
+        print(f" the ball is at {(app.ballCx, app.ballCy)}")        
         app.pitch.d2y += app.gravity
         app.pitch.dy += app.pitch.d2y
 
         app.ballCx += app.pitch.dx
         app.ballCy += app.pitch.dy
-
-        print(app.ballCx, app.ballCy)
         
 def redrawAll(app, canvas):
     #Background field:
@@ -246,6 +270,13 @@ def redrawAll(app, canvas):
     batR = app.width//12
     canvas.create_arc(batCx - batR, batCy - batR, batCx + batR,
                         batCy + batR, start=270, extent=180, outline = "green", width = 5)
+
+    minibatR = app.width//36
+    top1 = batCy - minibatR
+    bottom1 = batCy + minibatR
+    canvas.create_line(batCx, top1, batCx + batR, top1, fill = "blue", width = 3)
+    canvas.create_line(batCx, bottom1, batCx + batR, bottom1, fill = "blue", width = 3)
+
 
     #Hub:
     textX = app.width * 2/12
