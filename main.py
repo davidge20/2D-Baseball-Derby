@@ -8,27 +8,26 @@ from math import *
 #TODO: 
 #Setup variety of different pitches based on randomness
 #Implement strikes vs balls
-#Setup probabilty of missing the pitch based on the type of swing
 #i.e power swing vs contact swing
 #Setup power of swing based on type of swing
-
 #Adds biases to pitcher based on the pitches thrown and sees which
 #pitches the batter is hitting
 
 class Pitch:
-    def __init__(self, name, dx, d2x, dy, d2y, mass):
+    def __init__(self, name, dx, d2x, dy, d2y, mass, chance):
         self.name = name
         self.dx = dx
         self.d2x = d2x
         self.dy = dy
         self.d2y = d2y
         self.mass = mass
+        self.chance = chance
 
     def reset(self, dx, d2x, dy, d2y):
         self.dx = dx
         self.d2x = d2x
         self.dy = dy
-        self.d2y = d2y
+        self.d2y = d2y      
 
 class Bat:
     def __init__(self, name, mass, length):
@@ -55,7 +54,7 @@ class Bat:
         vFinal = ((fAvg * dT) // app.pitch.mass) + vInitial
         velOfBall = (vFinal/(cos(app.launchAngle))) // 4
 
-        velOfBallX = velOfBall * (cos(app.launchAngle))
+        velOfBallX = velOfBall * (cos(app.launchAngle)) * 1.25
         velOfBallY = -1 * abs(velOfBall * (sin(app.launchAngle)))
         
         app.pitch.dx = velOfBallX
@@ -64,6 +63,7 @@ class Bat:
         print(f'velOfBall is {velOfBall}')
         print(f'the velos are {velOfBallX}, {velOfBallY}')
         print(f'---------------')
+        return velOfBall
 
     def __repr__(self):
         return f"{self.name}"
@@ -93,14 +93,15 @@ def appStarted(app):
     #Pitches
     app.ballCx, app.ballCy = app.width * 26/39, app.height * 7/9
     app.r = 7
-    app.fastball = Pitch("fastball", -7, 0, 0, 0, 0.145) 
-    app.curveball = Pitch("curveball", -7, 0, -6, .12, 0.145)
-    app.slider = Pitch("slider", -7, 0, -2 , 0.08, 0.145)
+    app.fastball = Pitch("fastball", -7, 0, 0, 0, 0.145, 33) 
+    app.curveball = Pitch("curveball", -7, 0, -6, .12, 0.145, 33)
+    app.slider = Pitch("slider", -7, 0, -2 , 0.08, 0.145, 33)
     app.pitchList = [app.fastball, app.curveball, app.slider]
     app.pitch = None
     app.pitchSpeed = None
     app.pitcher = False
     app.throwBall = False
+    app.pitcherTime = 3000
 
     #Batting
     app.pickBat = False
@@ -117,6 +118,7 @@ def appStarted(app):
     app.balls = 0
     app.outs = 0
     app.score = 0
+    app.scoreAdd = False
 
     app.timerDelay = 10
     app.spritePitcherDelay = 0
@@ -152,11 +154,11 @@ def launchAngle(app):
     left4 = batCx + 3 * batR
 
     if left3 <= app.positionAtSwingX <= left4:
-        app.launchAngle = randrange(61,90)
+        app.launchAngle = randrange(41,60)
     elif left2 <= app.positionAtSwingX < left3:
-        app.launchAngle = randrange(31,60)
+        app.launchAngle = randrange(25,40)
     elif left1 <= app.positionAtSwingX < left2:
-        app.launchAngle = randrange(1,30)
+        app.launchAngle = randrange(1,15)
 
     #Conversion from degrees to radians 
     app.launchAngle = (app.launchAngle * pi)/180
@@ -180,12 +182,44 @@ def chooseRandomPitch(app):
     app.curveball.reset(speed,0 , -6, .12)
     app.slider.reset(speed, 0, -3.5 , 0.08)
 
+#Choose pitch for smart pitcher
+def chooseSmartPitch(app):
+    #Add each pitch to a list, 500(-3), 250(-2), 100(-1), homerun(-4),
+    #popout(+1), and ground(+1)
+    #Create a dictionary with each pitch and its corresponding value
+    #Change the size of the probability of the pitch being thrown
+    
+    fastball = app.fastball.chance
+    curveball = app.curveball.chance + app.fastball.chance
+    max = slider = app.fastball.chance + app.slider.chance + app.curveball.chance
+    print(f'chances are {(fastball,curveball, max)}')
+    num = randrange(1,max)
+
+    if 1 <= num < fastball:
+        app.pitch = app.pitchList[0]
+    elif fastball <= num < curveball:
+        app.pitch = app.pitchList[1]
+    elif curveball <= num <= slider:
+        app.pitch = app.pitchList[2]
+
+    #position the pitch
+    cy = app.height * 7//9
+    max = cy - app.height//20
+    min = cy + app.height//20
+    app.ballCy = randrange(max, min)
+
+    #resets values
+    speed = randrange(-10, -6)
+    app.fastball.reset(speed, 0, 0, 0)
+    app.curveball.reset(speed,0 , -6, .14)
+    app.slider.reset(speed, 0, -3.5 , 0.08)
+
 def keyPressed(app, event):
     if event.key == "p": #Pitcher pitches
         app.ballCx, app.ballCy = app.width * 26/39, app.height * 7/9
         app.hitPitch = False
         app.pitcher = True
-        chooseRandomPitch(app)
+        chooseSmartPitch(app)
     
     if event.key == "b": #Batter swings
         app.positionAtSwingX, app.positionAtSwingY = app.ballCx, app.ballCy
@@ -210,15 +244,26 @@ def keyPressed(app, event):
         app.directions = True
 
 def timerFired(app):
+    #Pitcher auto throws
+    if app.directions == True:
+        app.pitcherTime -= 10
+    if app.pitcherTime <= 0:
+        app.ballCx, app.ballCy = app.width * 26/39, app.height * 7/9
+        app.hitPitch = False
+        app.pitcher = True
+        chooseSmartPitch(app)
+        app.pitcherTime = 3000
+
     #Bounce on grass
     grassHeight = app.height * 8/9
     batterPosition = app.width * 1/12
     if app.ballCy >= grassHeight and app.ballCx > batterPosition:
         app.grassBall = True
         app.hitPitch = False
+        app.scoreAdd = False
 
     if app.grassBall:
-        app.pitch.dy = -1
+        app.pitch.dy = -1.5
 
         app.pitch.d2y += app.gravity
         app.pitch.dy += app.pitch.d2y
@@ -226,8 +271,9 @@ def timerFired(app):
         app.ballCx += app.pitch.dx
         app.ballCy += app.pitch.dy
     
-    #Score
-    if app.ballCx > app.width * 11/12:
+    #Score and assign points/outs
+    currHeight = app.height * 1/15
+    if app.ballCx > app.width * 11/12 or app.ballCy < currHeight:
         app.grassBall = False
         app.freezeBall = True
         app.hitPitch = False
@@ -237,23 +283,43 @@ def timerFired(app):
         app.pitch.d2x = 0
         app.pitch.d2y = 0
 
-        level1 = app.height * 2/3
-        level2 = app.height * 1/3
+        level1 = app.height * 1/3
+        level2 = app.height * 2/3
         grassHeight = app.height * 8/9
+        popFlyToHomeRun = app.width * 6/9
+        HomeRunToScore = app.width * 11/12
 
-        if 0 <= app.ballCx < level1:
+        if 0 <= app.ballCx < popFlyToHomeRun and app.scoreAdd:
+            app.outs += 1
+            app.pitch.chance += 2
+            app.scoreAdd = False
+
+        elif popFlyToHomeRun <= app.ballCx < HomeRunToScore and app.scoreAdd:
+            app.score += 1000
+            app.pitch.chance -=3
+            app.scoreAdd = False
+
+        elif 0 <= app.ballCy < level1 and app.scoreAdd:
             app.score += 500
-        elif level1 <= app.ballCx < level2:
+            app.pitch.chance -= 2
+            app.scoreAdd = False
+
+        elif level1 <= app.ballCy < level2 and app.scoreAdd:
             app.score += 250
-        elif level2 <= app.ballCx < grassHeight:
+            app.pitch.chance -= 1
+            app.scoreAdd = False
+
+        elif level2 <= app.ballCy < grassHeight and app.scoreAdd:
             app.score += 100
+            app.pitch.chance -= 0
+            app.scoreAdd = False
 
     #Updates pitcher sprites
     if app.pitcher:
         app.spritePitcherDelay += 10
         if app.spritePitcherDelay >= 80:
             app.spritePitcherCounter = (1 + app.spritePitcherCounter)
-            app.spriteBatterDelay = 0
+            app.spritePitcherDelay = 0
             if app.spritePitcherCounter == 4:
                 app.throwBall = True
 
@@ -282,6 +348,7 @@ def timerFired(app):
 
     #Swings
     if app.hitPitch: 
+        app.scoreAdd = True
         # print(f" the ball is at {(app.ballCx, app.ballCy)}")        
         app.pitch.d2y += app.gravity
         app.pitch.dy += app.pitch.d2y
@@ -323,6 +390,9 @@ def redrawAll(app, canvas):
     canvas.create_text(textX, textY * 1.5, text = f"Strikes: {app.strikes}/3", font = "Arial 20 bold", fill = "black")
     canvas.create_text(textX, textY * 2, text = f"Balls: {app.balls}/4", font = "Arial 20 bold", fill = "black")
     canvas.create_text(textX, textY * 2.5, text = f"Outs: {app.outs}/3", font = "Arial 20 bold", fill = "black")
+    canvas.create_text(textX, textY * 3, text = f"Score: {app.score}", font = "Arial 20 bold", fill = "black")
+    canvas.create_text(textX, textY * 3.5, text = f"Pitcher Time Delay: {app.pitcherTime/1000}", font = "Arial 20 bold", fill = "black")
+
 
     #Grass
     grassHeight = app.height * 8/9
@@ -340,14 +410,27 @@ def redrawAll(app, canvas):
     yScore2 = (level1 + level2)//2
     yScore3 = (0 + level2)//2
 
-    canvas.create_rectangle(x0, level1, x1, grassHeight , fill = "yellow")
-    canvas.create_text(xMid, yScore1, text = "100", fill = "black", font = "Arial 20 bold")
+    canvas.create_rectangle(x0, level1, x1, grassHeight , fill = "turquoise1")
+    canvas.create_text(xMid, yScore1, text = "100", fill = "black", 
+                                        font = "Arial 20 bold")
 
-    canvas.create_rectangle(x0, level2, x1, level1 , fill = "red")
-    canvas.create_text(xMid, yScore2, text = "250", fill = "black", font = "Arial 20 bold")
+    canvas.create_rectangle(x0, level2, x1, level1 , fill = "turquoise2")
+    canvas.create_text(xMid, yScore2, text = "250", fill = "black", 
+                                        font = "Arial 20 bold")
 
-    canvas.create_rectangle(x0, 0, x1, level2 , fill = "orange")
-    canvas.create_text(xMid, yScore3, text = "500", fill = "black", font = "Arial 20 bold")
+    canvas.create_rectangle(x0, 0, x1, level2 , fill = "turquoise3")
+    canvas.create_text(xMid, yScore3, text = "500", fill = "black", 
+                                        font = "Arial 20 bold")
+
+    popFlyToHomeRun = app.width * 6/9
+    currHeight = app.height * 1/15
+    canvas.create_rectangle(0,0,popFlyToHomeRun, currHeight, fill = "red")
+    canvas.create_text(popFlyToHomeRun//2,currHeight//2, text = "Pop Out Zone", 
+                        fill = "black", font = "Arial 20 bold")
+    canvas.create_rectangle(popFlyToHomeRun,0,x0,currHeight, fill = "lime green")
+    canvas.create_text((popFlyToHomeRun + x0)//2,currHeight//2, text = "Home Run Zone", 
+                        fill = "black", font = "Arial 20 bold")
+
 
     #Ball:
     if app.throwBall or app.hitPitch or app.freezeBall or app.grassBall:
@@ -377,11 +460,11 @@ def redrawAll(app, canvas):
         fill = "black", font = "Arial 20 bold")
     
     if app.directions == False and app.pickBat == True:
-        canvas.create_text(app.width//2, app.height//3, 
+        canvas.create_text(app.width//2, app.height * 1/2, 
         text = "Directions: Press on the 'b' key to swing and try to hit the ball as many times before you have 3 outs!", 
         fill = "black", font = "Arial 20 bold")
 
-        canvas.create_text(app.width//2, app.height//3 * 1.2, 
+        canvas.create_text(app.width//2, app.height * 1/2 * 1.2, 
         text = "Press 'c' to begin! Best of luck!", 
         fill = "black", font = "Arial 20 bold")
 
