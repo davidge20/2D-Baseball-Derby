@@ -1,3 +1,5 @@
+#From in-class lecture
+
 class Button:
     def __init__(self,x,y, color, attachedFunction = None):
         self.color = color
