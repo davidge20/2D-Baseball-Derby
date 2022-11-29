@@ -29,6 +29,9 @@ class Pitch:
         self.dy = dy
         self.d2y = d2y      
 
+    def __repr__(self):
+        return self.name
+
 class Bat:
     def __init__(self, name, mass, length):
         self.name = name
@@ -89,6 +92,8 @@ def appStarted(app):
     app.spriteBatterCounter = 0
 
     app.directions = False
+    app.currMode = False
+    app.modeSelected = None
 
     #Pitches
     app.ballCx, app.ballCy = app.width * 26/39, app.height * 7/9
@@ -163,6 +168,7 @@ def launchAngle(app):
     #Conversion from degrees to radians 
     app.launchAngle = (app.launchAngle * pi)/180
 
+    print(f'the pitch is {app.pitch}')
     print(f'the launch angle is {app.launchAngle}')
 
 #Choose pitch for pitcher
@@ -188,7 +194,7 @@ def chooseSmartPitch(app):
     #popout(+1), and ground(+1)
     #Create a dictionary with each pitch and its corresponding value
     #Change the size of the probability of the pitch being thrown
-    
+
     fastball = app.fastball.chance
     curveball = app.curveball.chance + app.fastball.chance
     max = slider = app.fastball.chance + app.slider.chance + app.curveball.chance
@@ -215,6 +221,14 @@ def chooseSmartPitch(app):
     app.slider.reset(speed, 0, -3.5 , 0.08)
 
 def keyPressed(app, event):
+    if event.key == "e":
+        app.currMode = True
+        app.modeSelected = "easy"
+
+    if event.key == "h":
+        app.currMode = True
+        app.modeSelected = "hard"
+
     if event.key == "p": #Pitcher pitches
         app.ballCx, app.ballCy = app.width * 26/39, app.height * 7/9
         app.hitPitch = False
@@ -289,30 +303,56 @@ def timerFired(app):
         popFlyToHomeRun = app.width * 6/9
         HomeRunToScore = app.width * 11/12
 
+        if app.modeSelected == "easy":
+            multiplier = 1
+        elif app.modeSelected == "hard":
+            multiplier = 3
+
+        pitchIndex = app.pitchList.index(app.pitch)
+
         if 0 <= app.ballCx < popFlyToHomeRun and app.scoreAdd:
             app.outs += 1
-            app.pitch.chance += 2
+            app.pitch.chance += 2 * multiplier 
             app.scoreAdd = False
+
+            for pitch in app.pitchList:
+                if pitch != app.pitch:
+                    app.pitch.chance -= 2 * multiplier 
 
         elif popFlyToHomeRun <= app.ballCx < HomeRunToScore and app.scoreAdd:
             app.score += 1000
-            app.pitch.chance -=3
+            app.pitch.chance -=3 * multiplier
             app.scoreAdd = False
+
+            for pitch in app.pitchList:
+                if pitch is not app.pitch:
+                    app.pitch.chance += 3 * multiplier 
 
         elif 0 <= app.ballCy < level1 and app.scoreAdd:
             app.score += 500
-            app.pitch.chance -= 2
+            app.pitch.chance -= 2 * multiplier
             app.scoreAdd = False
+
+            for pitch in app.pitchList:
+                if pitch is not app.pitch:
+                    app.pitch.chance += 2 * multiplier 
 
         elif level1 <= app.ballCy < level2 and app.scoreAdd:
             app.score += 250
-            app.pitch.chance -= 1
+            app.pitch.chance -= 1 * multiplier
             app.scoreAdd = False
+
+            for pitch in app.pitchList:
+                if pitch is not app.pitch:
+                    app.pitch.chance += 1 * multiplier 
 
         elif level2 <= app.ballCy < grassHeight and app.scoreAdd:
             app.score += 100
-            app.pitch.chance -= 0
+            app.pitch.chance -= 0 * multiplier
             app.scoreAdd = False
+        
+        if app.pitch.chance <= 0:
+            app.pitch.chance = 0
 
     #Updates pitcher sprites
     if app.pitcher:
@@ -384,7 +424,7 @@ def redrawAll(app, canvas):
     canvas.create_line(left3, batCy - batR, left3, batCy + batR, fill = "blue", width = 3)
 
     #Hub:
-    textX = app.width * 2/12
+    textX = app.width * 1/10
     textY = app.height * 1/10
     canvas.create_text(textX, textY, text = f"Type of Bat: {app.bat}", font = "Arial 20 bold", fill = "black")
     canvas.create_text(textX, textY * 1.5, text = f"Strikes: {app.strikes}/3", font = "Arial 20 bold", fill = "black")
@@ -392,7 +432,7 @@ def redrawAll(app, canvas):
     canvas.create_text(textX, textY * 2.5, text = f"Outs: {app.outs}/3", font = "Arial 20 bold", fill = "black")
     canvas.create_text(textX, textY * 3, text = f"Score: {app.score}", font = "Arial 20 bold", fill = "black")
     canvas.create_text(textX, textY * 3.5, text = f"Pitcher Time Delay: {app.pitcherTime/1000}", font = "Arial 20 bold", fill = "black")
-
+    canvas.create_text(textX, textY * 4, text = f"Mode: {app.modeSelected}", font = "Arial 20 bold", fill = "black")
 
     #Grass
     grassHeight = app.height * 8/9
@@ -431,7 +471,6 @@ def redrawAll(app, canvas):
     canvas.create_text((popFlyToHomeRun + x0)//2,currHeight//2, text = "Home Run Zone", 
                         fill = "black", font = "Arial 20 bold")
 
-
     #Ball:
     if app.throwBall or app.hitPitch or app.freezeBall or app.grassBall:
         canvas.create_oval(app.ballCx - app.r, app.ballCy - app.r, 
@@ -444,7 +483,7 @@ def redrawAll(app, canvas):
                                 anchor = "nw", fill = "black", font = "Arial 30 bold")
     
     #Welcome screen
-    if app.pickBat == False:
+    if app.pickBat == False or app.currMode == False:
         canvas.create_text(app.width//2, app.height//3, 
         text = "Welcome! Pick a bat!", fill = "black", font = "Arial 30 bold")
 
@@ -452,14 +491,18 @@ def redrawAll(app, canvas):
         text = "Bat 1: Slugger or Bat 2: Longhead", fill = "black", font = "Arial 30 bold")
     
         canvas.create_text(app.width//2, app.height//3 * 1.4, 
-        text = "Choose slugger if you are all about the power and don't care as much about accuracy",
+        text = "Choose slugger if you are all about the power",
         fill = "black", font = "Arial 20 bold")
 
         canvas.create_text(app.width//2, app.height//3 * 1.5, 
         text = "Choose longhead for higher accuracy but less power",
         fill = "black", font = "Arial 20 bold")
+
+        canvas.create_text(app.width//2, app.height//3 * 1.7, 
+        text = "Press 'e' for a smart pitcher and 'h' for a smarter pitcher",
+        fill = "black", font = "Arial 25 bold")
     
-    if app.directions == False and app.pickBat == True:
+    if app.directions == False and app.pickBat == True and app.currMode == True:
         canvas.create_text(app.width//2, app.height * 1/2, 
         text = "Directions: Press on the 'b' key to swing and try to hit the ball as many times before you have 3 outs!", 
         fill = "black", font = "Arial 20 bold")
