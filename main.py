@@ -6,12 +6,7 @@ from math import *
 #https://www.deviantart.com/kingnoel/art/DK-Superstar-Baseball-MLSS-Style-Sprite-Sheet-512492203
 
 #TODO: 
-#Setup variety of different pitches based on randomness
-#Implement strikes vs balls
-#i.e power swing vs contact swing
-#Setup power of swing based on type of swing
-#Adds biases to pitcher based on the pitches thrown and sees which
-#pitches the batter is hitting
+#Setup power of swing based on type of swing i.e power swing vs contact swing
 
 class Pitch:
     def __init__(self, name, dx, d2x, dy, d2y, mass, chance):
@@ -128,6 +123,7 @@ def appStarted(app):
     app.timerDelay = 10
     app.spritePitcherDelay = 0
     app.spriteBatterDelay = 0
+    app.isGameOver = False
 
 #Check if ball is hit if batter swings
 def contactWithBat(app):
@@ -221,6 +217,13 @@ def chooseSmartPitch(app):
     app.slider.reset(speed, 0, -3.5 , 0.08)
 
 def keyPressed(app, event):
+    #Gameover/restart state
+    if app.isGameOver == True and event.key != "r" : return
+
+    if event.key == "r":
+        appStarted(app)
+
+    #Change modes
     if event.key == "e":
         app.currMode = True
         app.modeSelected = "easy"
@@ -258,6 +261,10 @@ def keyPressed(app, event):
         app.directions = True
 
 def timerFired(app):
+    #Gameover
+    if app.outs >= 3: app.isGameOver = True
+    if app.isGameOver: return 
+
     #Pitcher auto throws
     if app.directions == True:
         app.pitcherTime -= 10
@@ -396,6 +403,16 @@ def timerFired(app):
         app.ballCx += app.pitch.dx
         app.ballCy += app.pitch.dy
         
+def gameOverScreen(app,canvas):
+    canvas.create_text(app.width//2, app.height//2, text = "GAME OVER", 
+                                font = "Arial 30 bold", fill = "black")
+    canvas.create_text(app.width//2, app.height//2 * 1.1, 
+        text = f"Your Score is {app.score}", 
+        font = "Arial 30 bold", fill = "black")
+    canvas.create_text(app.width//2, app.height//2 * 1.2, 
+    text = f"Press 'r' to restart!", 
+    font = "Arial 30 bold", fill = "black")
+
 def redrawAll(app, canvas):
     #Background field:
     canvas.create_rectangle(0,0, app.width, app.height, fill = "SkyBlue2")
@@ -426,13 +443,21 @@ def redrawAll(app, canvas):
     #Hub:
     textX = app.width * 1/10
     textY = app.height * 1/10
-    canvas.create_text(textX, textY, text = f"Type of Bat: {app.bat}", font = "Arial 20 bold", fill = "black")
-    canvas.create_text(textX, textY * 1.5, text = f"Strikes: {app.strikes}/3", font = "Arial 20 bold", fill = "black")
-    canvas.create_text(textX, textY * 2, text = f"Balls: {app.balls}/4", font = "Arial 20 bold", fill = "black")
-    canvas.create_text(textX, textY * 2.5, text = f"Outs: {app.outs}/3", font = "Arial 20 bold", fill = "black")
-    canvas.create_text(textX, textY * 3, text = f"Score: {app.score}", font = "Arial 20 bold", fill = "black")
-    canvas.create_text(textX, textY * 3.5, text = f"Pitcher Time Delay: {app.pitcherTime/1000}", font = "Arial 20 bold", fill = "black")
-    canvas.create_text(textX, textY * 4, text = f"Mode: {app.modeSelected}", font = "Arial 20 bold", fill = "black")
+    canvas.create_text(textX, textY, text = f"Type of Bat: {app.bat}", 
+        font = "Arial 20 bold", fill = "black")
+    # canvas.create_text(textX, textY * 1.5, text = f"Strikes: {app.strikes}/3", 
+    # font = "Arial 20 bold", fill = "black")
+    # canvas.create_text(textX, textY * 2, text = f"Balls: {app.balls}/4", 
+    # font = "Arial 20 bold", fill = "black")
+    canvas.create_text(textX, textY * 1.5, text = f"Outs: {app.outs}/3", 
+        font = "Arial 20 bold", fill = "black")
+    canvas.create_text(textX, textY * 2, text = f"Score: {app.score}", 
+        font = "Arial 20 bold", fill = "black")
+    canvas.create_text(textX, textY * 2.5, 
+        text = f"Pitcher Time Delay: {app.pitcherTime/1000}", 
+        font = "Arial 20 bold", fill = "black")
+    canvas.create_text(textX, textY * 3, text = f"Mode: {app.modeSelected}", 
+        font = "Arial 20 bold", fill = "black")
 
     #Grass
     grassHeight = app.height * 8/9
@@ -510,5 +535,8 @@ def redrawAll(app, canvas):
         canvas.create_text(app.width//2, app.height * 1/2 * 1.2, 
         text = "Press 'c' to begin! Best of luck!", 
         fill = "black", font = "Arial 20 bold")
+
+    if app.isGameOver:
+        gameOverScreen(app,canvas)
 
 runApp(width=1200, height=600)
