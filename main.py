@@ -5,9 +5,6 @@ from math import *
 #Sprite sheets for "pitcherSprites.png" and "battingSprites.png" from
 #https://www.deviantart.com/kingnoel/art/DK-Superstar-Baseball-MLSS-Style-Sprite-Sheet-512492203
 
-#TODO: 
-#Setup power of swing based on type of swing i.e power swing vs contact swing
-
 class Pitch:
     def __init__(self, name, dx, d2x, dy, d2y, mass, chance):
         self.name = name
