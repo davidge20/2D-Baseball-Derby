@@ -33,9 +33,12 @@ class Bat:
 #Calculate dx and dy the ball after it is hit
     def velocityOfHit(self, app):
 
+        #CITATION: Statistics from the following website
+        #https://www.encyclopedia.com/sports/sports-fitness-recreation-and-leisure-magazines/baseball-bat-speed
+
         vInitial = app.pitchSpeed
         dT = 0.15 #avg time of bat on ball
-        acceleration = 31 #avg bat accel
+        acceleration = 31 #avg bat acceleration
         fAvg = self.mass * acceleration
         vFinal = ((fAvg * dT) // app.pitch.mass) + vInitial
         velOfBall = (vFinal/(cos(app.launchAngle))) // 8
@@ -46,6 +49,12 @@ class Bat:
         app.pitch.dx = velOfBallX
         app.pitch.dy = velOfBallY
 
+        s = app.height - app.positionAtSwingY
+        timeInAir = (-1 * velOfBallY - sqrt(velOfBallY ** 2 - 4 * (-16) * (s)) 
+                    // (2 * -16))
+        app.distance = (velOfBallX * timeInAir) * 2
+
+        print(f'distance is {app.distance}')
         print(f'velOfBall is {velOfBall}')
         print(f'the velos are {velOfBallX}, {velOfBallY}')
         print(f'---------------')
@@ -101,6 +110,7 @@ def appStarted(app):
     app.bat = None
     app.freezeBall = False
     app.grassBall = False
+    app.distance = 0
 
     app.strikes = 0
     app.balls = 0
@@ -482,6 +492,10 @@ def welcomeScreen(app,canvas):
         text = "Directions: Press on the 'b' key to swing and try to hit the ball as many times before you have 3 outs!", 
         fill = "black", font = "Arial 20 bold")
 
+        canvas.create_text(app.width//2, app.height * 1/2 * 1.1, 
+        text = "Swing too early and the ball will fly up! Swing too late and the ball will be a grounder!", 
+        fill = "black", font = "Arial 20 bold")
+
         canvas.create_text(app.width//2, app.height * 1/2 * 1.2, 
         text = "Press 'c' to begin! Best of luck!", 
         fill = "black", font = "Arial 20 bold")
@@ -494,10 +508,16 @@ def drawBall(app,canvas):
                         app.ballCx + app.r, app.ballCy + app.r, fill = "white")
     
         #MPH:
-        canvas.create_text(app.width*4/6, app.height*1/12, text = f"MPH: {app.pitchSpeed}", 
-                                anchor = "nw", fill = "black", font = "Arial 30 bold")
-        canvas.create_text(app.width*4/6, app.height*2/12, text = f"Pitch: {app.pitch.name}", 
-                                anchor = "nw", fill = "black", font = "Arial 30 bold")
+        canvas.create_text(app.width*4/6, app.height*1/12, 
+        text = f"MPH: {app.pitchSpeed}", anchor = "nw", 
+        fill = "black", font = "Arial 20 bold")
+        canvas.create_text(app.width*4/6, app.height*2/12, 
+        text = f"Pitch: {app.pitch.name}", anchor = "nw", 
+        fill = "black", font = "Arial 20 bold")
+        #Distance
+        canvas.create_text(app.width*4/6, app.height*3/12, 
+        text = f"Distance: {app.distance} feet", anchor = "nw", 
+        fill = "black", font = "Arial 20 bold")
 
 #Draws legal strike zone for batter (green semi-circle)
 def isLegalStrikeZone(app,canvas):
