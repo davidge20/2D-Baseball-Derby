@@ -52,7 +52,7 @@ class Bat:
         s = app.height - app.positionAtSwingY
         timeInAir = (-1 * velOfBallY - sqrt(velOfBallY ** 2 - 4 * (-16) * (s)) 
                     // (2 * -16))
-        app.distance = (velOfBallX * timeInAir) * 2
+        app.distance = round((velOfBallX * timeInAir)) * 1.5
 
         print(f'distance is {app.distance}')
         print(f'velOfBall is {velOfBall}')
