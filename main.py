@@ -5,6 +5,7 @@ from math import *
 #CITATION: Sprite sheets for "pitcherSprites.png" and "battingSprites.png" from
 #https://www.deviantart.com/kingnoel/art/DK-Superstar-Baseball-MLSS-Style-Sprite-Sheet-512492203
 
+#Class for the pitch objects thrown by pitcher
 class Pitch:
     def __init__(self, name, dx, d2x, dy, d2y, mass, chance):
         self.name = name
@@ -24,6 +25,7 @@ class Pitch:
     def __repr__(self):
         return self.name
 
+#Class for the bat object used by batters to swing
 class Bat:
     def __init__(self, name, mass, length):
         self.name = name
