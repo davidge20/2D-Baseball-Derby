@@ -2,7 +2,7 @@ from cmu_112_graphics import *
 from random import *
 from math import *
 
-#Sprite sheets for "pitcherSprites.png" and "battingSprites.png" from
+#CITATION: Sprite sheets for "pitcherSprites.png" and "battingSprites.png" from
 #https://www.deviantart.com/kingnoel/art/DK-Superstar-Baseball-MLSS-Style-Sprite-Sheet-512492203
 
 class Pitch:
@@ -30,15 +30,6 @@ class Bat:
         self.mass = mass
         self.length = length
 
-#Probabiltiy of ball being hit based on bat length
-    def probabilityOfContact(self, app):
-        num = randrange(1,100)
-        cutoff = self.length
-        if num < cutoff:
-            return True
-        else:
-            return False
-
 #Calculate dx and dy the ball after it is hit
     def velocityOfHit(self, app):
 
@@ -47,7 +38,7 @@ class Bat:
         acceleration = 31 #avg bat accel
         fAvg = self.mass * acceleration
         vFinal = ((fAvg * dT) // app.pitch.mass) + vInitial
-        velOfBall = (vFinal/(cos(app.launchAngle))) // 4
+        velOfBall = (vFinal/(cos(app.launchAngle))) // 8
 
         velOfBallX = velOfBall * (cos(app.launchAngle)) * 1.25
         velOfBallY = -1 * abs(velOfBall * (sin(app.launchAngle)))
@@ -181,13 +172,8 @@ def chooseRandomPitch(app):
     app.curveball.reset(speed,0 , -6, .12)
     app.slider.reset(speed, 0, -3.5 , 0.08)
 
-#Choose pitch for smart pitcher
+#Choose pitch for smart pitcher using results of previous pitches
 def chooseSmartPitch(app):
-    #Add each pitch to a list, 500(-3), 250(-2), 100(-1), homerun(-4),
-    #popout(+1), and ground(+1)
-    #Create a dictionary with each pitch and its corresponding value
-    #Change the size of the probability of the pitch being thrown
-
     fastball = app.fastball.chance
     curveball = app.curveball.chance + app.fastball.chance
     max = slider = app.fastball.chance + app.slider.chance + app.curveball.chance
@@ -209,9 +195,98 @@ def chooseSmartPitch(app):
 
     #resets values
     speed = randrange(-10, -6)
+    app.pitchSpeed = abs(speed) * 9
     app.fastball.reset(speed, 0, 0, 0)
     app.curveball.reset(speed,0 , -6, .14)
     app.slider.reset(speed, 0, -3.5 , 0.08)
+
+#Updates score and outs if ball is in a point range
+def updateScore(app):
+    currHeight = app.height * 1/15
+    if app.ballCx > app.width * 11/12 or app.ballCy < currHeight:
+        app.grassBall = False
+        app.freezeBall = True
+        app.hitPitch = False
+
+        app.pitch.dx = 0
+        app.pitch.dy = 0
+        app.pitch.d2x = 0
+        app.pitch.d2y = 0
+
+        level1 = app.height * 1/3
+        level2 = app.height * 2/3
+        grassHeight = app.height * 8/9
+        popFlyToHomeRun = app.width * 6/9
+        HomeRunToScore = app.width * 11/12
+
+        if app.modeSelected == "easy":
+            multiplier = 1
+        elif app.modeSelected == "hard":
+            multiplier = 3
+        elif app.modeSelected is None:
+            multiplier = 1
+
+        if 0 <= app.ballCx < popFlyToHomeRun and app.scoreAdd:
+            app.outs += 1
+            app.pitch.chance += 2 * multiplier 
+            app.scoreAdd = False
+
+            for pitch in app.pitchList:
+                if pitch != app.pitch:
+                    app.pitch.chance -= 2 * multiplier 
+
+        elif popFlyToHomeRun <= app.ballCx < HomeRunToScore and app.scoreAdd:
+            app.score += 1000
+            app.pitch.chance -=3 * multiplier
+            app.scoreAdd = False
+
+            for pitch in app.pitchList:
+                if pitch is not app.pitch:
+                    app.pitch.chance += 3 * multiplier 
+
+        elif 0 <= app.ballCy < level1 and app.scoreAdd:
+            app.score += 500
+            app.pitch.chance -= 2 * multiplier
+            app.scoreAdd = False
+
+            for pitch in app.pitchList:
+                if pitch is not app.pitch:
+                    app.pitch.chance += 2 * multiplier 
+
+        elif level1 <= app.ballCy < level2 and app.scoreAdd:
+            app.score += 250
+            app.pitch.chance -= 1 * multiplier
+            app.scoreAdd = False
+
+            for pitch in app.pitchList:
+                if pitch is not app.pitch:
+                    app.pitch.chance += 1 * multiplier 
+
+        elif level2 <= app.ballCy < grassHeight and app.scoreAdd:
+            app.score += 100
+            app.pitch.chance -= 0 * multiplier
+            app.scoreAdd = False
+        
+        if app.pitch.chance <= 0:
+            app.pitch.chance = 0
+
+#Allow ball to bounce off of the grass
+def ballHitGrass(app):
+    grassHeight = app.height * 8/9
+    batterPosition = app.width * 1/12
+    if app.ballCy >= grassHeight and app.ballCx > batterPosition:
+        app.grassBall = True
+        app.hitPitch = False
+        app.scoreAdd = False
+
+    if app.grassBall:
+        app.pitch.dy = -1.5
+
+        app.pitch.d2y += app.gravity
+        app.pitch.dy += app.pitch.d2y
+
+        app.ballCx += app.pitch.dx
+        app.ballCy += app.pitch.dy
 
 def keyPressed(app, event):
     #Gameover/restart state
@@ -272,91 +347,10 @@ def timerFired(app):
         chooseSmartPitch(app)
         app.pitcherTime = 3000
 
-    #Bounce on grass
-    grassHeight = app.height * 8/9
-    batterPosition = app.width * 1/12
-    if app.ballCy >= grassHeight and app.ballCx > batterPosition:
-        app.grassBall = True
-        app.hitPitch = False
-        app.scoreAdd = False
-
-    if app.grassBall:
-        app.pitch.dy = -1.5
-
-        app.pitch.d2y += app.gravity
-        app.pitch.dy += app.pitch.d2y
-
-        app.ballCx += app.pitch.dx
-        app.ballCy += app.pitch.dy
-    
+    #If ball bounces on grass
+    ballHitGrass(app)
     #Score and assign points/outs
-    currHeight = app.height * 1/15
-    if app.ballCx > app.width * 11/12 or app.ballCy < currHeight:
-        app.grassBall = False
-        app.freezeBall = True
-        app.hitPitch = False
-
-        app.pitch.dx = 0
-        app.pitch.dy = 0
-        app.pitch.d2x = 0
-        app.pitch.d2y = 0
-
-        level1 = app.height * 1/3
-        level2 = app.height * 2/3
-        grassHeight = app.height * 8/9
-        popFlyToHomeRun = app.width * 6/9
-        HomeRunToScore = app.width * 11/12
-
-        if app.modeSelected == "easy":
-            multiplier = 1
-        elif app.modeSelected == "hard":
-            multiplier = 3
-
-        pitchIndex = app.pitchList.index(app.pitch)
-
-        if 0 <= app.ballCx < popFlyToHomeRun and app.scoreAdd:
-            app.outs += 1
-            app.pitch.chance += 2 * multiplier 
-            app.scoreAdd = False
-
-            for pitch in app.pitchList:
-                if pitch != app.pitch:
-                    app.pitch.chance -= 2 * multiplier 
-
-        elif popFlyToHomeRun <= app.ballCx < HomeRunToScore and app.scoreAdd:
-            app.score += 1000
-            app.pitch.chance -=3 * multiplier
-            app.scoreAdd = False
-
-            for pitch in app.pitchList:
-                if pitch is not app.pitch:
-                    app.pitch.chance += 3 * multiplier 
-
-        elif 0 <= app.ballCy < level1 and app.scoreAdd:
-            app.score += 500
-            app.pitch.chance -= 2 * multiplier
-            app.scoreAdd = False
-
-            for pitch in app.pitchList:
-                if pitch is not app.pitch:
-                    app.pitch.chance += 2 * multiplier 
-
-        elif level1 <= app.ballCy < level2 and app.scoreAdd:
-            app.score += 250
-            app.pitch.chance -= 1 * multiplier
-            app.scoreAdd = False
-
-            for pitch in app.pitchList:
-                if pitch is not app.pitch:
-                    app.pitch.chance += 1 * multiplier 
-
-        elif level2 <= app.ballCy < grassHeight and app.scoreAdd:
-            app.score += 100
-            app.pitch.chance -= 0 * multiplier
-            app.scoreAdd = False
-        
-        if app.pitch.chance <= 0:
-            app.pitch.chance = 0
+    updateScore(app)
 
     #Updates pitcher sprites
     if app.pitcher:
@@ -384,68 +378,40 @@ def timerFired(app):
 
     #Pitches
     if app.throwBall:
-        app.pitchSpeed = 36
         app.ballCx += app.pitch.dx
         app.pitch.dx += app.pitch.d2x
         app.ballCy += app.pitch.dy
         app.pitch.dy += app.pitch.d2y
 
-    #Swings
+    #Swings/Contact with ball
     if app.hitPitch: 
         app.scoreAdd = True
-        # print(f" the ball is at {(app.ballCx, app.ballCy)}")        
         app.pitch.d2y += app.gravity
         app.pitch.dy += app.pitch.d2y
 
         app.ballCx += app.pitch.dx
         app.ballCy += app.pitch.dy
         
+########### redrawAll FUNCTIONS ###########
+
+#Draws game over screen if game is over
 def gameOverScreen(app,canvas):
-    canvas.create_text(app.width//2, app.height//2, text = "GAME OVER", 
-                                font = "Arial 30 bold", fill = "black")
-    canvas.create_text(app.width//2, app.height//2 * 1.1, 
-        text = f"Your Score is {app.score}", 
+    if app.isGameOver:
+        canvas.create_text(app.width//2, app.height//2, text = "GAME OVER", 
+                                    font = "Arial 30 bold", fill = "black")
+        canvas.create_text(app.width//2, app.height//2 * 1.1, 
+            text = f"Your Score is {app.score}", 
+            font = "Arial 30 bold", fill = "black")
+        canvas.create_text(app.width//2, app.height//2 * 1.2, 
+        text = f"Press 'r' to restart!", 
         font = "Arial 30 bold", fill = "black")
-    canvas.create_text(app.width//2, app.height//2 * 1.2, 
-    text = f"Press 'r' to restart!", 
-    font = "Arial 30 bold", fill = "black")
 
-def redrawAll(app, canvas):
-    #Background field:
-    canvas.create_rectangle(0,0, app.width, app.height, fill = "SkyBlue2")
-
-    #Print sprites of pitcher and batter:
-    pitcherSprite = app.spritesPitcher[app.spritePitcherCounter]
-    canvas.create_image(app.width * 6/8, app.height * 20/25, 
-                                    image=ImageTk.PhotoImage(pitcherSprite))
-
-    batterSprite = app.spritesBatter[app.spriteBatterCounter]
-    canvas.create_image(app.width * 1/12, app.height * 8/11, 
-                                    image=ImageTk.PhotoImage(batterSprite))
-
-    #Green zone:
-    batCx = app.width * 1/12
-    batCy = app.height * 8/11
-    batR = app.width//12
-    canvas.create_arc(batCx - batR, batCy - batR, batCx + batR,
-                        batCy + batR, start=270, extent=180, outline = "green", width = 5)
-
-    minibatR = app.width//36
-    left2 = batCx + minibatR
-    left3 = batCx + 2 * minibatR
-
-    canvas.create_line(left2, batCy - batR, left2, batCy + batR, fill = "blue", width = 3)
-    canvas.create_line(left3, batCy - batR, left3, batCy + batR, fill = "blue", width = 3)
-
-    #Hub:
+#Draws the hub in the top left corner of the screen
+def drawHub(app,canvas):
     textX = app.width * 1/10
     textY = app.height * 1/10
     canvas.create_text(textX, textY, text = f"Type of Bat: {app.bat}", 
         font = "Arial 20 bold", fill = "black")
-    # canvas.create_text(textX, textY * 1.5, text = f"Strikes: {app.strikes}/3", 
-    # font = "Arial 20 bold", fill = "black")
-    # canvas.create_text(textX, textY * 2, text = f"Balls: {app.balls}/4", 
-    # font = "Arial 20 bold", fill = "black")
     canvas.create_text(textX, textY * 1.5, text = f"Outs: {app.outs}/3", 
         font = "Arial 20 bold", fill = "black")
     canvas.create_text(textX, textY * 2, text = f"Score: {app.score}", 
@@ -456,12 +422,9 @@ def redrawAll(app, canvas):
     canvas.create_text(textX, textY * 3, text = f"Mode: {app.modeSelected}", 
         font = "Arial 20 bold", fill = "black")
 
-    #Grass
+#Draws the score zones around the screen for user to score points
+def scoreZones(app,canvas):
     grassHeight = app.height * 8/9
-    canvas.create_rectangle(0, grassHeight, app.width, app.height, 
-                                            fill = "green", outline = "green")
-
-    #Score Zones
     level1 = app.height * 2/3
     level2 = app.height * 1/3
     x0 = app.width * 11/12
@@ -493,18 +456,8 @@ def redrawAll(app, canvas):
     canvas.create_text((popFlyToHomeRun + x0)//2,currHeight//2, text = "Home Run Zone", 
                         fill = "black", font = "Arial 20 bold")
 
-    #Ball:
-    if app.throwBall or app.hitPitch or app.freezeBall or app.grassBall:
-        canvas.create_oval(app.ballCx - app.r, app.ballCy - app.r, 
-                        app.ballCx + app.r, app.ballCy + app.r, fill = "white")
-    
-    #MPH:
-        canvas.create_text(app.width*4/6, app.height*1/12, text = f"MPH: {app.pitchSpeed}", 
-                                anchor = "nw", fill = "black", font = "Arial 30 bold")
-        canvas.create_text(app.width*4/6, app.height*2/12, text = f"Pitch: {app.pitch.name}", 
-                                anchor = "nw", fill = "black", font = "Arial 30 bold")
-    
-    #Welcome screen
+#Introduces user to the game with directions and options
+def welcomeScreen(app,canvas):
     if app.pickBat == False or app.currMode == False:
         canvas.create_text(app.width//2, app.height//3, 
         text = "Welcome! Pick a bat!", fill = "black", font = "Arial 30 bold")
@@ -533,7 +486,65 @@ def redrawAll(app, canvas):
         text = "Press 'c' to begin! Best of luck!", 
         fill = "black", font = "Arial 20 bold")
 
-    if app.isGameOver:
-        gameOverScreen(app,canvas)
+#Draws the ball if it is pitched or hit
+def drawBall(app,canvas):
+
+    if app.throwBall or app.hitPitch or app.freezeBall or app.grassBall:
+        canvas.create_oval(app.ballCx - app.r, app.ballCy - app.r, 
+                        app.ballCx + app.r, app.ballCy + app.r, fill = "white")
+    
+        #MPH:
+        canvas.create_text(app.width*4/6, app.height*1/12, text = f"MPH: {app.pitchSpeed}", 
+                                anchor = "nw", fill = "black", font = "Arial 30 bold")
+        canvas.create_text(app.width*4/6, app.height*2/12, text = f"Pitch: {app.pitch.name}", 
+                                anchor = "nw", fill = "black", font = "Arial 30 bold")
+
+#Draws legal strike zone for batter (green semi-circle)
+def isLegalStrikeZone(app,canvas):
+    batCx = app.width * 1/12
+    batCy = app.height * 8/11
+    batR = app.width//12
+    canvas.create_arc(batCx - batR, batCy - batR, batCx + batR,
+            batCy + batR, start=270, extent=180, outline = "green", width = 5)
+
+    minibatR = app.width//36
+    left2 = batCx + minibatR
+    left3 = batCx + 2 * minibatR
+
+    canvas.create_line(left2, batCy - batR, left2, batCy + batR, 
+        fill = "blue", width = 3)
+    canvas.create_line(left3, batCy - batR, left3, batCy + batR, 
+        fill = "blue", width = 3)
+
+def redrawAll(app, canvas):
+    #Background field:
+    canvas.create_rectangle(0,0, app.width, app.height, fill = "SkyBlue2")
+
+    #Print sprites of pitcher and batter:
+    pitcherSprite = app.spritesPitcher[app.spritePitcherCounter]
+    canvas.create_image(app.width * 6/8, app.height * 20/25, 
+                                    image=ImageTk.PhotoImage(pitcherSprite))
+
+    batterSprite = app.spritesBatter[app.spriteBatterCounter]
+    canvas.create_image(app.width * 1/12, app.height * 8/11, 
+                                    image=ImageTk.PhotoImage(batterSprite))
+
+    #Grass
+    grassHeight = app.height * 8/9
+    canvas.create_rectangle(0, grassHeight, app.width, app.height, 
+                            fill = "green", outline = "green")
+
+    #Strike Zone/Green Zone:
+    isLegalStrikeZone(app,canvas)
+    #Hub:
+    drawHub(app,canvas)
+    #Score Zones
+    scoreZones(app,canvas)
+    #Ball:
+    drawBall(app,canvas)
+    #Welcome screen at start of the game 
+    welcomeScreen(app,canvas)
+    #Gameover screen appears if game is over (3 outs)
+    gameOverScreen(app,canvas)
 
 runApp(width=1200, height=600)
