@@ -49,9 +49,9 @@ class Bat:
         app.pitch.dx = velOfBallX
         app.pitch.dy = velOfBallY
 
-        s = app.height - app.positionAtSwingY
-        timeInAir = (-1 * velOfBallY - sqrt(velOfBallY ** 2 - 4 * (-16) * (s)) 
-                    // (2 * -16))
+        initialHeight = app.height - app.positionAtSwingY
+        timeInAir = (-1 * velOfBallY - sqrt(velOfBallY ** 2 - 4 * (-16) * 
+                    (initialHeight)) // (2 * -16))
         app.distance = round((velOfBallX * timeInAir)) * 1.5
 
         print(f'distance is {app.distance}')
@@ -161,9 +161,6 @@ def launchAngle(app):
 
     #Conversion from degrees to radians 
     app.launchAngle = (app.launchAngle * pi)/180
-
-    print(f'the pitch is {app.pitch}')
-    print(f'the launch angle is {app.launchAngle}')
 
 #Choose pitch for pitcher
 def chooseRandomPitch(app):
@@ -506,7 +503,6 @@ def welcomeScreen(app,canvas):
 
 #Draws the ball if it is pitched or hit
 def drawBall(app,canvas):
-
     if app.throwBall or app.hitPitch or app.freezeBall or app.grassBall:
         canvas.create_oval(app.ballCx - app.r, app.ballCy - app.r, 
                         app.ballCx + app.r, app.ballCy + app.r, fill = "white")
@@ -518,8 +514,16 @@ def drawBall(app,canvas):
         canvas.create_text(app.width*4/6, app.height*2/12, 
         text = f"Pitch: {app.pitch.name}", anchor = "nw", 
         fill = "black", font = "Arial 20 bold")
-        #Distance
+        #Launch Angle:
+        if app.launchAngle is not None:
+            angle = round(app.launchAngle * 180/pi)
+        else:
+            angle = 0
         canvas.create_text(app.width*4/6, app.height*3/12, 
+        text = f"Launch Angle: {angle} degrees", anchor = "nw", 
+        fill = "black", font = "Arial 20 bold")
+        #Distance
+        canvas.create_text(app.width*4/6, app.height*4/12, 
         text = f"Distance: {app.distance} feet", anchor = "nw", 
         fill = "black", font = "Arial 20 bold")
 
