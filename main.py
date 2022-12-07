@@ -488,12 +488,16 @@ def welcomeScreen(app,canvas):
         fill = "black", font = "Arial 25 bold")
     
     if app.directions == False and app.pickBat == True and app.currMode == True:
-        canvas.create_text(app.width//2, app.height * 1/2, 
+        canvas.create_text(app.width//2, app.height * 1/2 * 0.9, 
         text = "Directions: Press on the 'b' key to swing and try to hit the ball as many times before you have 3 outs!", 
         fill = "black", font = "Arial 20 bold")
 
         canvas.create_text(app.width//2, app.height * 1/2 * 1.1, 
         text = "Swing too early and the ball will fly up! Swing too late and the ball will be a grounder!", 
+        fill = "black", font = "Arial 20 bold")
+
+        canvas.create_text(app.width//2, app.height * 1/2 * 1, 
+        text = "Swing once the ball enters the green zone!", 
         fill = "black", font = "Arial 20 bold")
 
         canvas.create_text(app.width//2, app.height * 1/2 * 1.2, 
@@ -526,15 +530,6 @@ def isLegalStrikeZone(app,canvas):
     batR = app.width//12
     canvas.create_arc(batCx - batR, batCy - batR, batCx + batR,
             batCy + batR, start=270, extent=180, outline = "green", width = 5)
-
-    minibatR = app.width//36
-    left2 = batCx + minibatR
-    left3 = batCx + 2 * minibatR
-
-    canvas.create_line(left2, batCy - batR, left2, batCy + batR, 
-        fill = "blue", width = 3)
-    canvas.create_line(left3, batCy - batR, left3, batCy + batR, 
-        fill = "blue", width = 3)
 
 def redrawAll(app, canvas):
     #Background field:
